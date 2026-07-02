@@ -1,6 +1,7 @@
 {
   "name": "@xavifabregat/spotify-mcp",
-  "version": "0.1.1",
+  "mcpName": "io.github.XavierFabregat/spotify-mcp",
+  "version": "0.1.2",
   "description": "MCP server to control Spotify conversationally from Claude, Cursor, and other AI clients",
   "keywords": [
     "mcp",
