@@ -1,6 +1,7 @@
 # spotify-mcp
 
 [![npm](https://img.shields.io/npm/v/%40xavifabregat%2Fspotify-mcp)](https://www.npmjs.com/package/@xavifabregat/spotify-mcp)
+[![CI](https://github.com/XavierFabregat/spotify-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/XavierFabregat/spotify-mcp/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen)
 
