@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.XavierFabregat/spotify-mcp",
-  "description": "Control Spotify conversationally: play, queue, devices, playlists, and library via intent-shaped tools.",
+  "description": "Conversational Spotify control from AI clients: play, queue, devices, playlists, and library.",
   "repository": {
     "url": "https://github.com/XavierFabregat/spotify-mcp",
     "source": "github"
