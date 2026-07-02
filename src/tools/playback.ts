@@ -12,7 +12,7 @@ function sleep(ms: number): Promise<void> {
 type PlayableKind = "track" | "album" | "artist" | "playlist";
 
 /** Search and pick the top match, returning a URI plus a human label. */
-async function resolvePlayable(
+export async function resolvePlayable(
   query: string,
   kind: PlayableKind
 ): Promise<{ uri: string; label: string } | null> {

@@ -194,7 +194,10 @@ export async function runAuthFlow(): Promise<void> {
 /** Returns a valid access token, silently refreshing when stale. */
 export async function getAccessToken(force = false): Promise<string> {
   const tokens = loadTokens();
-  if (!tokens?.refresh_token) throw new NotAuthenticatedError();
+  if (!tokens?.refresh_token) {
+    getClientId(); // unconfigured entirely → NotConfiguredError with init instructions
+    throw new NotAuthenticatedError();
+  }
   if (!force && Date.now() < tokens.expires_at - 60_000) return tokens.access_token;
 
   try {

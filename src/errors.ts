@@ -16,7 +16,7 @@ export class NotAuthenticatedError extends Error {
     super(
       (detail ? detail + " " : "") +
         "Not connected to Spotify. Run the `authenticate` tool (it opens a browser to approve " +
-        "access), or run `npm run auth` from the spotify-mcp directory."
+        "access), or run `npx -y @xavifabregat/spotify-mcp auth` in a terminal."
     );
     this.name = "NotAuthenticatedError";
   }
