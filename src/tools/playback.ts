@@ -3,13 +3,33 @@ import { z } from "zod";
 import { runAuthFlow } from "../auth.js";
 import { deviceLine, nowPlayingText, numbered, trackLine } from "../format.js";
 import * as spotify from "../spotify.js";
-import { run, withDeviceFallback } from "./util.js";
+import { run, ToolMessageError, withDeviceFallback } from "./util.js";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-type PlayableKind = "track" | "album" | "artist" | "playlist";
+const PLAYABLE_KINDS = ["track", "album", "artist", "playlist"] as const;
+type PlayableKind = (typeof PLAYABLE_KINDS)[number];
+
+/** Guidance for the model about a bad call — surfaces with isError set. */
+function invalid(message: string): never {
+  throw new ToolMessageError(message);
+}
+
+/** Reads on/off (or a boolean) from a loosely typed tool argument. */
+export function parseOnOff(value: unknown): boolean | null {
+  const v = String(value).trim().toLowerCase();
+  if (v === "on" || v === "true") return true;
+  if (v === "off" || v === "false") return false;
+  return null;
+}
+
+/** The kind segment of a playable Spotify URI, or null if it isn't one. */
+export function playableKind(uri: string): PlayableKind | null {
+  const m = uri.match(/^spotify:(track|album|artist|playlist):[A-Za-z0-9]+$/);
+  return m ? (m[1] as PlayableKind) : null;
+}
 
 /** Search and pick the top match, returning a URI plus a human label. */
 export async function resolvePlayable(
@@ -46,6 +66,7 @@ export function registerPlaybackTools(server: McpServer): void {
         "Connects the user's Spotify account via OAuth. Opens a browser on this machine for " +
         "approval and stores tokens locally. Use when other tools report you are not " +
         "authenticated, or to switch accounts.",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     run(async () => {
       await runAuthFlow();
@@ -68,7 +89,7 @@ export function registerPlaybackTools(server: McpServer): void {
           .optional()
           .describe('What to play, e.g. "Bill Evans" or "Kind of Blue". Required unless uri is given.'),
         type: z
-          .enum(["track", "album", "artist", "playlist"])
+          .enum(PLAYABLE_KINDS)
           .optional()
           .describe("What the query refers to (default: track)"),
         uri: z
@@ -77,25 +98,45 @@ export function registerPlaybackTools(server: McpServer): void {
           .describe("Spotify URI to play directly, e.g. from a previous search result"),
         device_id: z.string().optional().describe("Target device id (see the devices tool)"),
       },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     run(async (args: { query?: string; type?: PlayableKind; uri?: string; device_id?: string }) => {
       let uri = args.uri;
-      let label = uri ?? "";
+      let label: string | null = null;
       if (!uri) {
-        if (!args.query) return "Provide either a query (what to play) or a Spotify URI.";
+        if (!args.query) invalid("Provide either a query (what to play) or a Spotify URI.");
         const kind = args.type ?? "track";
         const match = await resolvePlayable(args.query, kind);
         if (!match) {
-          return `No ${kind} results for "${args.query}". Try the search tool or a different wording.`;
+          invalid(`No ${kind} results for "${args.query}". Try the search tool or a different wording.`);
         }
         uri = match.uri;
         label = match.label;
       }
-      const kind = uri.split(":")[1] as PlayableKind;
+      const kind = playableKind(uri);
+      if (!kind) {
+        invalid(
+          `"${uri}" is not a playable Spotify URI. Expected spotify:track:…, spotify:album:…, ` +
+            "spotify:artist:…, or spotify:playlist:… (e.g. from a search result)."
+        );
+      }
       const body = kind === "track" ? { uris: [uri] } : { context_uri: uri };
       const { deviceNote } = await withDeviceFallback((dev) =>
         spotify.startPlayback(body, args.device_id ?? dev)
       );
+      if (!label) {
+        // Played by raw URI: ask Spotify what actually started so the reply
+        // names the music instead of echoing the URI back.
+        await sleep(500);
+        const state = await spotify.getPlaybackState().catch(() => null);
+        const current = state?.item ? trackLine(state.item) : null;
+        label =
+          kind === "track"
+            ? (current ?? uri)
+            : current
+              ? `${current} (from ${kind} ${uri})`
+              : `${kind} ${uri}`;
+      }
       return `▶ Now playing${deviceNote}: ${label}`;
     })
   );
@@ -111,12 +152,16 @@ export function registerPlaybackTools(server: McpServer): void {
       inputSchema: {
         action: z.enum(["pause", "resume", "next", "previous", "seek", "volume", "shuffle", "repeat"]),
         value: z
-          .union([z.number(), z.string()])
+          .union([z.number(), z.string(), z.boolean()])
           .optional()
-          .describe("seek: seconds · volume: 0-100 · shuffle: on/off · repeat: off/context/track"),
+          .describe(
+            "Required for seek (seconds from track start), volume (0-100), shuffle (on/off), " +
+              "repeat (off/context/track). Omit for pause, resume, next, previous."
+          ),
       },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    run(async (args: { action: string; value?: number | string }) => {
+    run(async (args: { action: string; value?: number | string | boolean }) => {
       const { action, value } = args;
       const exec = async (fn: (dev?: string) => Promise<unknown>, done: string) => {
         const { deviceNote } = await withDeviceFallback(fn);
@@ -139,25 +184,30 @@ export function registerPlaybackTools(server: McpServer): void {
         }
         case "seek": {
           const seconds = Number(value);
-          if (!Number.isFinite(seconds) || seconds < 0) return "seek needs value = seconds (number ≥ 0).";
+          if (value == null || value === "" || !Number.isFinite(seconds) || seconds < 0) {
+            invalid("seek needs value = seconds (number ≥ 0).");
+          }
           return exec((dev) => spotify.seek(Math.round(seconds * 1000), dev), `⏩ Seeked to ${seconds}s`);
         }
         case "volume": {
           const pct = Math.round(Number(value));
-          if (!Number.isFinite(pct) || pct < 0 || pct > 100) return "volume needs value = 0-100.";
+          if (value == null || value === "" || !Number.isFinite(pct) || pct < 0 || pct > 100) {
+            invalid("volume needs value = 0-100.");
+          }
           return exec((dev) => spotify.setVolume(pct, dev), `🔊 Volume set to ${pct}%`);
         }
         case "shuffle": {
-          const on = String(value).toLowerCase() === "on" || value === "true";
+          const on = parseOnOff(value);
+          if (on === null) invalid("shuffle needs value = on or off.");
           return exec((dev) => spotify.setShuffle(on, dev), `🔀 Shuffle ${on ? "on" : "off"}`);
         }
         case "repeat": {
           const mode = String(value) as "off" | "context" | "track";
-          if (!["off", "context", "track"].includes(mode)) return "repeat needs value = off, context, or track.";
+          if (!["off", "context", "track"].includes(mode)) invalid("repeat needs value = off, context, or track.");
           return exec((dev) => spotify.setRepeat(mode, dev), `🔁 Repeat set to ${mode}`);
         }
         default:
-          return `Unknown action: ${action}`;
+          invalid(`Unknown action: ${action}`);
       }
     })
   );
@@ -167,7 +217,7 @@ export function registerPlaybackTools(server: McpServer): void {
     {
       title: "What's playing",
       description: "Current track, artist, album, progress, device, and shuffle/repeat state.",
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, openWorldHint: true },
     },
     run(async () => nowPlayingText(await spotify.getPlaybackState()))
   );
@@ -183,6 +233,7 @@ export function registerPlaybackTools(server: McpServer): void {
         query: z.string().optional().describe("Track to queue by name (action=add)"),
         uri: z.string().optional().describe("Track URI to queue (action=add)"),
       },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     run(async (args: { action: "add" | "list"; query?: string; uri?: string }) => {
       if (args.action === "list") {
@@ -199,9 +250,9 @@ export function registerPlaybackTools(server: McpServer): void {
       let uri = args.uri;
       let label = uri ?? "";
       if (!uri) {
-        if (!args.query) return "Provide a track query or uri to add to the queue.";
+        if (!args.query) invalid("Provide a track query or uri to add to the queue.");
         const match = await resolvePlayable(args.query, "track");
-        if (!match) return `No track results for "${args.query}".`;
+        if (!match) invalid(`No track results for "${args.query}".`);
         uri = match.uri;
         label = match.label;
       }
@@ -221,6 +272,7 @@ export function registerPlaybackTools(server: McpServer): void {
         action: z.enum(["list", "transfer"]),
         device: z.string().optional().describe("Device name (fuzzy) or id (action=transfer)"),
       },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     run(async (args: { action: "list" | "transfer"; device?: string }) => {
       const devices = await spotify.getDevices();
@@ -230,15 +282,15 @@ export function registerPlaybackTools(server: McpServer): void {
         }
         return "Available devices:\n" + numbered(devices.map(deviceLine));
       }
-      if (!args.device) return "Provide the device to transfer to (name or id).";
+      if (!args.device) invalid("Provide the device to transfer to (name or id).");
       const needle = args.device.toLowerCase();
       const matches = devices.filter(
         (d) => d.id === args.device || d.name.toLowerCase().includes(needle)
       );
       if (matches.length !== 1 || !matches[0].id) {
-        return (
+        invalid(
           (matches.length === 0 ? `No device matches "${args.device}".` : `"${args.device}" is ambiguous.`) +
-          (devices.length ? "\nAvailable:\n" + numbered(devices.map(deviceLine)) : " No devices online.")
+            (devices.length ? "\nAvailable:\n" + numbered(devices.map(deviceLine)) : " No devices online.")
         );
       }
       await spotify.transferPlayback(matches[0].id, true);

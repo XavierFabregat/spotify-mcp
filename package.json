@@ -33,6 +33,7 @@
     "build": "tsc",
     "prepublishOnly": "tsc",
     "test": "npm run build && vitest run",
+    "icon": "node scripts/make-icon.mjs",
     "test:live": "npm run build && node scripts/live-check.mjs",
     "watch": "tsc --watch",
     "start": "node dist/index.js",

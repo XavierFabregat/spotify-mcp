@@ -1,4 +1,4 @@
-# spotify-mcp
+# <img src="assets/icon.png" alt="" width="32" align="top"> spotify-mcp
 
 [![npm](https://img.shields.io/npm/v/%40xavifabregat%2Fspotify-mcp)](https://www.npmjs.com/package/@xavifabregat/spotify-mcp)
 [![CI](https://github.com/XavierFabregat/spotify-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/XavierFabregat/spotify-mcp/actions/workflows/ci.yml)
