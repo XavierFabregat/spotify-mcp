@@ -1,0 +1,60 @@
+{
+  "manifest_version": "0.3",
+  "name": "spotify-mcp",
+  "display_name": "Spotify",
+  "version": "0.1.3",
+  "description": "Control Spotify by talking to your AI: play, queue, devices, playlists, and library.",
+  "long_description": "Conversational Spotify control. Ask for music in plain language and the server searches, picks the best match and starts playback, then reports what it chose.\n\nRequires Spotify Premium and your own free Spotify developer app: create one at https://developer.spotify.com/dashboard, add the redirect URI http://127.0.0.1:8888/callback, enable the Web API, and paste the app's Client ID when installing. Then ask your AI to connect Spotify — it opens a browser to approve access. No client secret is involved (PKCE); tokens stay in ~/.spotify-mcp/ on your machine.",
+  "author": {
+    "name": "Xavi Fabregat",
+    "url": "https://github.com/XavierFabregat"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/XavierFabregat/spotify-mcp"
+  },
+  "homepage": "https://github.com/XavierFabregat/spotify-mcp#readme",
+  "documentation": "https://github.com/XavierFabregat/spotify-mcp#readme",
+  "support": "https://github.com/XavierFabregat/spotify-mcp/issues",
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "SPOTIFY_CLIENT_ID": "${user_config.client_id}"
+      }
+    }
+  },
+  "user_config": {
+    "client_id": {
+      "type": "string",
+      "title": "Spotify Client ID",
+      "description": "Client ID of your Spotify developer app (32 hex characters). The app needs the redirect URI http://127.0.0.1:8888/callback.",
+      "required": true
+    }
+  },
+  "tools": [
+    { "name": "authenticate", "description": "Connect the Spotify account (opens a browser to approve access)" },
+    { "name": "play", "description": "Play by free-text query or Spotify URI" },
+    { "name": "playback", "description": "Pause, resume, next, previous, seek, volume, shuffle, repeat" },
+    { "name": "now_playing", "description": "Current track, progress, device, and mode" },
+    { "name": "queue", "description": "Add a track to the queue; show what's up next" },
+    { "name": "devices", "description": "List devices; transfer playback" },
+    { "name": "search", "description": "Search tracks, albums, artists, and playlists" },
+    { "name": "get_playlists", "description": "List your playlists" },
+    { "name": "get_playlist_items", "description": "Show a playlist's tracks" },
+    { "name": "modify_playlist", "description": "Create a playlist; add tracks" },
+    { "name": "library", "description": "Save, remove, or check items in your library" }
+  ],
+  "keywords": ["spotify", "music", "playback", "playlists"],
+  "license": "MIT",
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  }
+}

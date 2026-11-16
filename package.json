@@ -34,6 +34,7 @@
     "prepublishOnly": "tsc",
     "test": "npm run build && vitest run",
     "icon": "node scripts/make-icon.mjs",
+    "bundle": "npm run build && node scripts/build-mcpb.mjs",
     "test:live": "npm run build && node scripts/live-check.mjs",
     "watch": "tsc --watch",
     "start": "node dist/index.js",
@@ -50,6 +51,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@anthropic-ai/mcpb": "^2.1.2",
     "@types/node": "^26.1.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.9"

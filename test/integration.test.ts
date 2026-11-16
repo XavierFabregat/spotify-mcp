@@ -49,6 +49,11 @@ describe("stdio server (built dist)", () => {
       expect(client.getInstructions()).toMatch(/authenticate/);
 
       const { tools } = await client.listTools();
+
+      // The Desktop extension manifest must describe the same server.
+      const manifest = JSON.parse(readFileSync(join(process.cwd(), "manifest.json"), "utf8"));
+      expect(manifest.version).toBe(PKG_VERSION);
+      expect(manifest.tools.map((t: { name: string }) => t.name).sort()).toEqual([...EXPECTED_TOOLS].sort());
       // Every tool declares whether it can destroy data, so clients can gate approvals.
       for (const t of tools) {
         expect(t.annotations?.readOnlyHint || t.annotations?.destructiveHint !== undefined, t.name).toBe(true);
