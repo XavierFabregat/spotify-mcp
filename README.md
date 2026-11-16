@@ -66,6 +66,15 @@ or **Cursor** (`~/.cursor/mcp.json`):
 
 Restart the client and start talking.
 
+### Claude Desktop extension (one-click)
+
+Prefer not to edit config files? Install the `.mcpb` bundle instead: download
+`spotify-mcp.mcpb` from the [latest release](https://github.com/XavierFabregat/spotify-mcp/releases/latest),
+open it (or drag it into Claude Desktop → Settings → Extensions), and paste your Spotify
+app's Client ID when prompted. Then ask Claude to connect Spotify — the `authenticate`
+tool opens the browser login. You still need the developer app and Redirect URI from
+the quick start, but not the `init` wizard.
+
 ## Tools
 
 | Tool | What it does |
@@ -118,6 +127,7 @@ cd spotify-mcp
 npm install
 npm run build
 npm run inspect   # MCP Inspector against the local build
+npm run bundle    # build/spotify-mcp.mcpb (Claude Desktop extension)
 ```
 
 Layout: `src/auth.ts` (OAuth PKCE + token store) · `src/spotify.ts` (typed API
