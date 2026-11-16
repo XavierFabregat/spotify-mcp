@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { searchMock } = vi.hoisted(() => ({ searchMock: vi.fn() }));
 vi.mock("../src/spotify.js", () => ({ search: searchMock }));
 
-import { resolvePlayable } from "../src/tools/playback.js";
+import { parseOnOff, playableKind, resolvePlayable } from "../src/tools/playback.js";
 
 beforeEach(() => {
   searchMock.mockReset();
@@ -50,4 +50,34 @@ describe("resolvePlayable()", () => {
     const res = await resolvePlayable("jazz", "playlist");
     expect(res?.uri).toBe("spotify:playlist:1");
   });
+});
+
+describe("parseOnOff()", () => {
+  it.each([
+    ["on", true],
+    ["ON", true],
+    [true, true],
+    ["off", false],
+    [false, false],
+  ])("%s → %s", (input, expected) => {
+    expect(parseOnOff(input)).toBe(expected);
+  });
+
+  it.each([undefined, "", "maybe", 1])("rejects %s instead of defaulting to off", (input) => {
+    expect(parseOnOff(input)).toBeNull();
+  });
+});
+
+describe("playableKind()", () => {
+  it("reads the kind from a playable URI", () => {
+    expect(playableKind("spotify:album:1weenld61qoidwYuZ1GESA")).toBe("album");
+    expect(playableKind("spotify:track:1")).toBe("track");
+  });
+
+  it.each(["Kind of Blue", "spotify:show:123", "https://open.spotify.com/track/1", "spotify:track:"])(
+    "rejects %s",
+    (input) => {
+      expect(playableKind(input)).toBeNull();
+    }
+  );
 });
