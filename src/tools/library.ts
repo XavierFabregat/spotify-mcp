@@ -16,6 +16,8 @@ export function registerLibraryTools(server: McpServer): void {
         action: z.enum(["save", "remove", "check"]),
         uris: z.array(z.string()).min(1).max(20).describe("Spotify URIs to act on"),
       },
+      // action=remove deletes from the library, so clients should treat this as destructive.
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
     run(async (args: { action: "save" | "remove" | "check"; uris: string[] }) => {
       switch (args.action) {
