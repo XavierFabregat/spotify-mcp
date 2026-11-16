@@ -21,7 +21,7 @@ export function registerSearchTools(server: McpServer): void {
           .describe("Result types to include (default: track)"),
         limit: z.number().int().min(1).max(10).optional().describe("Results per type, 1-10 (default 5)"),
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, openWorldHint: true },
     },
     run(async (args: { query: string; types?: string[]; limit?: number }) => {
       const types = args.types?.length ? args.types : ["track"];

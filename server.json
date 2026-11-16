@@ -1,11 +1,22 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.XavierFabregat/spotify-mcp",
+  "title": "Spotify",
   "description": "Conversational Spotify control from AI clients: play, queue, devices, playlists, and library.",
   "repository": {
     "url": "https://github.com/XavierFabregat/spotify-mcp",
     "source": "github"
   },
+  "websiteUrl": "https://github.com/XavierFabregat/spotify-mcp#readme",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/XavierFabregat/spotify-mcp/main/assets/icon.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "256x256"
+      ]
+    }
+  ],
   "version": "0.1.2",
   "packages": [
     {

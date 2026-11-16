@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { numbered, playlistLine, trackLine } from "../format.js";
 import * as spotify from "../spotify.js";
-import { normalizePlaylistId, run } from "./util.js";
+import { normalizePlaylistId, run, ToolMessageError } from "./util.js";
 
 export function registerPlaylistTools(server: McpServer): void {
   server.registerTool(
@@ -10,7 +10,7 @@ export function registerPlaylistTools(server: McpServer): void {
     {
       title: "List my playlists",
       description: "Lists the user's playlists with item counts and URIs.",
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, openWorldHint: true },
     },
     run(async () => {
       const { items, total } = await spotify.getMyPlaylists();
@@ -34,7 +34,7 @@ export function registerPlaylistTools(server: McpServer): void {
         playlist: z.string().describe("Playlist id, spotify:playlist:… URI, or open.spotify.com URL"),
         offset: z.number().int().min(0).optional().describe("Pagination offset (default 0)"),
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, openWorldHint: true },
     },
     run(async (args: { playlist: string; offset?: number }) => {
       const id = normalizePlaylistId(args.playlist);
@@ -63,6 +63,7 @@ export function registerPlaylistTools(server: McpServer): void {
         playlist: z.string().optional().describe("Target playlist id/URI/URL (action=add_items)"),
         uris: z.array(z.string()).optional().describe("Track URIs to add (action=add_items)"),
       },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     run(
       async (args: {
@@ -74,13 +75,15 @@ export function registerPlaylistTools(server: McpServer): void {
         uris?: string[];
       }) => {
         if (args.action === "create") {
-          if (!args.name) return "Provide a name for the new playlist.";
+          if (!args.name) throw new ToolMessageError("Provide a name for the new playlist.");
           const p = await spotify.createPlaylist(args.name, args.description, args.public ?? false);
           const link = p.external_urls?.spotify ? ` — ${p.external_urls.spotify}` : "";
           return `✅ Created playlist "${p.name}" [${p.uri}]${link}. Use action=add_items to fill it.`;
         }
         if (!args.playlist || !args.uris?.length) {
-          return "action=add_items needs a playlist (id/URI/URL) and a non-empty uris array.";
+          throw new ToolMessageError(
+            "action=add_items needs a playlist (id/URI/URL) and a non-empty uris array."
+          );
         }
         await spotify.addPlaylistItems(normalizePlaylistId(args.playlist), args.uris);
         return `✅ Added ${args.uris.length} item(s) to the playlist.`;
