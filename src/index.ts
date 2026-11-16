@@ -4,6 +4,7 @@
  *   spotify-mcp init   → guided setup: client ID prompt + OAuth
  *   spotify-mcp auth   → re-run the OAuth flow only
  *   spotify-mcp        → serve MCP over stdio (what AI clients spawn)
+ *   spotify-mcp serve  → serve MCP over HTTP behind a secret URL (for tunnels)
  *
  * stdio discipline: in server mode stdout carries JSON-RPC only — all human
  * output goes to stderr.
@@ -11,6 +12,7 @@
 import readline from "node:readline/promises";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { getAccessToken, getClientId, runAuthFlow, saveClientId } from "./auth.js";
+import { parseServeArgs, serveHttp } from "./http.js";
 import { createServer } from "./server.js";
 import { getMe } from "./spotify.js";
 
@@ -81,6 +83,10 @@ async function main(): Promise<void> {
     console.error(`✅ Connected to Spotify${me?.display_name ? ` as ${me.display_name}` : ""}.`);
     return;
   }
+  if (cmd === "serve") {
+    await serveHttp(parseServeArgs(process.argv.slice(3)));
+    return;
+  }
   if (cmd || process.stdin.isTTY) {
     // A human ran this directly (or typo'd a command) — don't sit silent
     // waiting for JSON-RPC that will never come.
@@ -88,7 +94,8 @@ async function main(): Promise<void> {
       (cmd ? `Unknown command: ${cmd}\n\n` : "") +
         "spotify-mcp — MCP server for Spotify (speaks stdio; AI clients spawn it for you)\n\n" +
         "  npx -y @xavifabregat/spotify-mcp init   guided setup (Spotify app + login)\n" +
-        "  npx -y @xavifabregat/spotify-mcp auth   re-run the Spotify login only\n"
+        "  npx -y @xavifabregat/spotify-mcp auth   re-run the Spotify login only\n" +
+        "  npx -y @xavifabregat/spotify-mcp serve  serve over HTTP for an https tunnel (--port, --host)\n"
     );
     process.exit(cmd ? 1 : 0);
   }

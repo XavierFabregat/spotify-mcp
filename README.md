@@ -75,6 +75,35 @@ app's Client ID when prompted. Then ask Claude to connect Spotify — the `authe
 tool opens the browser login. You still need the developer app and Redirect URI from
 the quick start, but not the `init` wizard.
 
+## Remote access over HTTPS
+
+Some clients only accept a server URL. For those, run the server in HTTP mode and put
+an https tunnel in front of it:
+
+```sh
+npx -y @xavifabregat/spotify-mcp serve          # listens on 127.0.0.1:8787
+```
+
+It prints the endpoint, which ends in a long random secret:
+`http://127.0.0.1:8787/mcp/<secret>`. Expose the port with any tunnel, for example:
+
+```sh
+tailscale funnel 8787                            # or: ngrok http 8787
+                                                 # or: cloudflared tunnel --url http://localhost:8787
+```
+
+Then give the client `https://<your-tunnel-host>/mcp/<secret>`.
+
+- **This is single-user.** Whoever has the URL controls the Spotify account connected
+  on this machine — treat it like a password, and don't paste it into shared configs.
+- The secret is generated on first run and kept in `~/.spotify-mcp/http-secret`; delete
+  that file to rotate it, or set `SPOTIFY_MCP_HTTP_SECRET` (32+ characters) yourself.
+  Clients that can send headers may use `Authorization: Bearer <secret>` on `/mcp` instead.
+- Run `init` (or `auth`) on the same machine first; HTTP mode reuses those tokens.
+- `--port` / `--host` (or `PORT`, `SPOTIFY_MCP_HOST`) change the listener; `/healthz`
+  is an unauthenticated health check. To run it in a container, bind `--host 0.0.0.0`
+  and persist `~/.spotify-mcp/`.
+
 ## Tools
 
 | Tool | What it does |
@@ -131,7 +160,7 @@ npm run bundle    # build/spotify-mcp.mcpb (Claude Desktop extension)
 ```
 
 Layout: `src/auth.ts` (OAuth PKCE + token store) · `src/spotify.ts` (typed API
-client) · `src/tools/` (tool implementations) · `src/format.ts` (compact output).
+client) · `src/tools/` (tool implementations) · `src/http.ts` (HTTP mode) · `src/format.ts` (compact output).
 
 ## License
 
